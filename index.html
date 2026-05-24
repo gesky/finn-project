@@ -4219,9 +4219,29 @@ function buildContext(){
 
   const previstosSummary = Object.entries(previstos).map(([k,v])=>`Previsto ${catMap[k]||k}: R$${Number(v).toFixed(2)}/mês`).join('\n');
 
-  return `Você é o Finn, assistente financeiro pessoal do casal Pedro e Amanda. Sua personalidade é amigável e descontraída, mas sempre objetivo — como um amigo entendido de finanças. Responda em português, de forma direta e concisa (máximo 3-4 linhas). Pode usar uma palavrinha de encorajamento quando fizer sentido, mas sem exagerar. Sem perguntas de volta desnecessárias. Use os dados abaixo para respostas precisas.
+  const catsCtx = buildCatsContext();
+  const now2 = new Date();
+  const curYear = now2.getFullYear();
+  const curMonth = now2.getMonth()+1;
 
-DATA ATUAL: ${new Date().toLocaleDateString('pt-BR')} | Mês visualizado: ${MESES[viewMonth]}/${viewYear}
+  return `Você é o Finn, assistente financeiro pessoal do casal Pedro e Amanda. Personalidade amigável e direta — como um amigo entendido de finanças. Responda em português, conciso (máximo 4 linhas). Sem perguntas desnecessárias.
+
+VOCÊ PODE EXECUTAR AÇÕES no sistema. Quando o usuário pedir para definir valores previstos, adicionar orçamentos, etc, execute a ação E confirme.
+
+PARA EXECUTAR UMA AÇÃO, inclua ao final da sua resposta (pode ter várias):
+%%ACTION:{"type":"set_previsto","catId":"ID_EXATO","sub":"NOME_EXATO_DA_SUB","months":["YYYY-MM","YYYY-MM"],"valor":NUMERO}%%
+
+REGRAS DE AÇÃO:
+- Use SEMPRE o catId e sub EXATOS como aparecem em CATEGORIAS abaixo
+- months: array com os meses no formato "YYYY-MM"
+- valor: número sem formatação (ex: 19.90)
+- Gere um %%ACTION%% para cada ação distinta
+- Depois do %%ACTION%% confirme ao usuário o que foi feito
+
+DATA ATUAL: ${new Date().toLocaleDateString('pt-BR')} | Ano: ${curYear} | Mês atual: ${curMonth}
+
+=== CATEGORIAS E SUBCATEGORIAS ===
+${catsCtx}
 
 === LANÇAMENTOS (últimos 3 meses) ===
 ${entriesSummary || 'Nenhum lançamento encontrado.'}
@@ -4235,10 +4255,59 @@ ${invSummary || 'Nenhum investimento cadastrado.'}
 === PARCELAMENTOS ===
 ${parcSummary || 'Nenhum parcelamento ativo.'}
 
-=== LIMITES PREVISTOS POR CATEGORIA ===
-${previstosSummary || 'Nenhum previsto definido.'}
+=== PREVISTOS ATUAIS ===
+${previstosSummary || 'Nenhum previsto definido.'}`;
+}
 
-Se não encontrar nos dados, responda: "Não encontrado nos lançamentos."`;
+
+// ── FINN AI ACTIONS ───────────────────────────────────────
+// AI can return actions in this format at end of message:
+// %%ACTION:{"type":"set_previsto","catId":"x","sub":"y","months":["2026-06"],"valor":19.90}%%
+
+async function executeFinnActions(reply){
+  const actionRegex = /%%ACTION:(.*?)%%/g;
+  let match;
+  let result = reply;
+  const executed = [];
+
+  while((match = actionRegex.exec(reply)) !== null){
+    try{
+      const action = JSON.parse(match[1]);
+      if(action.type === 'set_previsto'){
+        // Set previsto for multiple months
+        for(const monthKey of (action.months||[])){
+          const [y,m] = monthKey.split('-').map(Number);
+          const key = action.catId+'__'+action.sub+'__'+monthKey;
+          previstos[key] = action.valor;
+        }
+        await savePrevistos();
+        executed.push(`✓ Previsto de ${fmt(action.valor)} definido em **${action.sub}** para ${action.months.length} mês(es)`);
+        refreshActivePage();
+      }
+    } catch(e){
+      console.warn('Action parse error:', e);
+    }
+    // Remove the action tag from the displayed reply
+    result = result.replace(match[0], '');
+  }
+
+  return {
+    cleanReply: result.trim(),
+    summary: executed.join('\n')
+  };
+}
+
+// Build categories map for AI context
+function buildCatsContext(){
+  const lines = [];
+  ['despesa','receita'].forEach(tipo=>{
+    (cats[tipo]||[]).forEach(cat=>{
+      cat.subcats.forEach(sub=>{
+        lines.push(`${tipo.toUpperCase()} | catId="${cat.id}" | cat="${cat.label}" | sub="${sub}"`);
+      });
+    });
+  });
+  return lines.join('\n');
 }
 
 window.aiKeydown = e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAiMessage();} };
@@ -4287,7 +4356,7 @@ window.sendAiMessage = async () => {
       headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({
         model:'claude-haiku-4-5-20251001',
-        max_tokens:600,
+        max_tokens:1000,
         system: systemPrompt,
         messages: apiMessages
       })
@@ -4299,7 +4368,10 @@ window.sendAiMessage = async () => {
     if(data.content&&data.content[0]){
       const reply = data.content[0].text;
       const replyTime = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-      aiCurrentConv.messages.push({role:'assistant', content:reply, time:replyTime});
+      // Execute any actions embedded in the reply
+      const {cleanReply, summary} = await executeFinnActions(reply);
+      const finalReply = cleanReply + (summary ? '\n\n' + summary : '');
+      aiCurrentConv.messages.push({role:'assistant', content:finalReply, time:replyTime});
       saveAiConversation();
       renderAiMessages();
     } else {
