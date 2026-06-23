@@ -651,6 +651,35 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
 }
 
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── PLANILHA MODE ──────────────────────────────────────── */
+#planilha-container{border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden}
+.pl-table{border-collapse:collapse;width:100%;min-width:900px}
+.pl-table th,.pl-table td{border:1px solid var(--border);padding:0}
+.pl-cell{padding:4px 8px;white-space:nowrap;font-size:11px}
+.pl-head-month{background:var(--accent);color:white;text-align:center;font-weight:700;font-size:11px;letter-spacing:.04em;padding:5px 8px}
+.pl-head-sub{background:#1e2060;color:rgba(255,255,255,0.8);text-align:center;font-size:10px;font-weight:600;padding:3px 8px}
+.pl-head-label{background:var(--bg3);color:var(--text2);font-weight:700;font-size:11px;padding:5px 10px;text-align:center}
+.pl-cat-row td{background:#e8e8f8;font-weight:700;font-size:11px;color:#000032}
+[data-theme="dark"] .pl-cat-row td{background:#1a1a3a;color:#a0a0ff}
+.pl-sub-row:hover td{background:var(--bg2)}
+.pl-total-row td{background:var(--bg3);font-weight:700;border-top:2px solid var(--border2)}
+.pl-label{text-align:left;padding:4px 10px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.pl-val{text-align:right;padding:4px 8px;font-family:'DM Mono',monospace;font-size:11px;min-width:80px}
+.pl-val.pos{color:var(--green)}
+.pl-val.neg{color:var(--red)}
+.pl-val.zero{color:var(--text3)}
+.pl-section-header td{background:var(--accent);color:white;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.06em;padding:7px 10px}
+/* Active state for toggle button */
+#btn-planilha.active{background:var(--accent);color:white;border-color:var(--accent)}
+@media(max-width:768px){
+  #btn-planilha span{display:none}
+  #planilha-container{font-size:10px}
+  .pl-cell{padding:3px 5px;font-size:10px}
+  .pl-label{max-width:110px;font-size:10px}
+  .pl-val{min-width:60px;font-size:10px}
+}
+
 </style>
 </head>
 <body>
@@ -735,8 +764,19 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
 
     <!-- PAINEL -->
     <div id="page-dashboard" class="page active">
-      <div class="page-header"><div><div class="page-title" id="dash-title"></div><div class="page-sub" id="dash-sub">Visão geral</div></div></div>
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div><div class="page-title" id="dash-title"></div><div class="page-sub" id="dash-sub">Visão geral</div></div>
+        <button id="btn-planilha" onclick="togglePlanilha()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;font-family:'Sora',sans-serif;transition:all .15s;white-space:nowrap">
+          📊 Planilha
+        </button>
+      </div>
       <div class="metrics-grid" id="dash-metrics"></div>
+      <!-- PLANILHA VIEW -->
+      <div id="planilha-view" style="display:none">
+        <div id="planilha-container" style="overflow-x:auto;font-size:12px"></div>
+      </div>
+      <!-- NORMAL DASHBOARD VIEW -->
+      <div id="normal-view">
       <div class="dash-animate-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:16px">
         <div class="card"><div class="card-header"><span class="card-title">Receitas vs Despesas — <span id="dash-chart-month"></span></span></div><div class="card-body"><div class="chart-wrap"><canvas id="barChartMonth"></canvas></div></div></div>
         <div class="card dash-mobile-hide"><div class="card-header"><span class="card-title">Receitas vs Despesas — últimos 6 meses</span></div><div class="card-body"><div class="chart-wrap"><canvas id="barChart"></canvas></div></div></div>
@@ -757,7 +797,8 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
       </div>
       <div class="card dash-mobile-hide" style="margin-bottom:16px"><div class="card-header"><span class="card-title">Evolução mensal — Previsto vs Realizado</span></div><div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="lineChart"></canvas></div></div></div>
       <div class="card dash-mobile-hide" style="margin-bottom:16px"><div class="card-header"><span class="card-title">Resumo anual por categoria de despesa</span></div><div class="card-body" id="rel-table" style="overflow-x:auto"></div></div>
-    </div>
+      </div><!-- end normal-view -->
+    </div><!-- end page-dashboard -->
 
     <!-- RECEITAS -->
     <div id="page-receitas" class="page">
@@ -2591,6 +2632,187 @@ async function loadCardapioData(){
     if(snapL.exists()){listaCompras=snapL.data().items||[];}
   }catch(e){console.warn('cardapio load error',e);}
   renderCardapio();
+}
+
+
+// ── PLANILHA MODE ────────────────────────────────────────
+let _planilhaMode = false;
+
+window.togglePlanilha = () => {
+  _planilhaMode = !_planilhaMode;
+  const btn = document.getElementById('btn-planilha');
+  const pv = document.getElementById('planilha-view');
+  const nv = document.getElementById('normal-view');
+  if(_planilhaMode){
+    btn.classList.add('active');
+    btn.innerHTML = '📋 Painel';
+    pv.style.display = 'block';
+    nv.style.display = 'none';
+    renderPlanilha();
+  } else {
+    btn.classList.remove('active');
+    btn.innerHTML = '📊 Planilha';
+    pv.style.display = 'none';
+    nv.style.display = 'block';
+    renderDashboard();
+  }
+};
+
+function renderPlanilha(){
+  const container = document.getElementById('planilha-container');
+  if(!container) return;
+
+  const ano = viewYear;
+  // Show all 12 months
+  const mesesAno = Array.from({length:12},(_,i)=>i);
+
+  // fmtP: format for planilha cell — show value or dash
+  const fmtP = v => {
+    if(!v||v===0) return '<span class="pl-val zero">—</span>';
+    const n = Number(v);
+    return `<span class="pl-val">${n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`;
+  };
+  const fmtPNeg = (v,tipo) => {
+    if(!v||v===0) return '<span class="pl-val zero">—</span>';
+    const n = Number(v);
+    const cls = tipo==='receita'?'pos':'neg';
+    return `<span class="pl-val ${cls}">${n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`;
+  };
+
+  // Build header row — months spanning 2 cols each (Previsto | Realizado)
+  let h = `<table class="pl-table">`;
+
+  // Row 1: month names spanning 2 cols
+  h += `<thead><tr>
+    <th class="pl-head-label" rowspan="2" style="min-width:160px;text-align:left;padding:5px 10px">ORIGEM</th>`;
+  mesesAno.forEach(m => {
+    h += `<th class="pl-head-month" colspan="2">${MESES[m].toUpperCase().slice(0,3)}</th>`;
+  });
+  h += `</tr><tr>`;
+  mesesAno.forEach(() => {
+    h += `<th class="pl-head-sub">PREV</th><th class="pl-head-sub">REAL</th>`;
+  });
+  h += `</tr></thead><tbody>`;
+
+  // ── RECEITAS ─────────────────────────────────────────
+  h += `<tr class="pl-section-header"><td colspan="${1+mesesAno.length*2}">RECEITAS</td></tr>`;
+
+  const recCats = allCats('receita');
+  const recTotPrev = new Array(12).fill(0);
+  const recTotReal = new Array(12).fill(0);
+
+  recCats.forEach(cat => {
+    // Category header row
+    h += `<tr class="pl-cat-row">
+      <td class="pl-label pl-cell">${cat.icon||''} ${cat.label}</td>`;
+    const catPrev = new Array(12).fill(0);
+    const catReal = new Array(12).fill(0);
+    cat.subcats.forEach(sub => {
+      mesesAno.forEach(m => {
+        catPrev[m] += getSubPrev(cat.id, sub, m, ano);
+        catReal[m] += sumR(entries.filter(e=>e.tipo==='receita'&&e.catId===cat.id&&e.subcategoria===sub&&new Date(e.date+'T12:00:00').getMonth()===m&&new Date(e.date+'T12:00:00').getFullYear()===ano));
+      });
+    });
+    mesesAno.forEach(m => {
+      recTotPrev[m] += catPrev[m];
+      recTotReal[m] += catReal[m];
+      h += `<td class="pl-cell">${fmtP(catPrev[m])}</td><td class="pl-cell">${fmtPNeg(catReal[m],'receita')}</td>`;
+    });
+    h += `</tr>`;
+
+    // Subcategory rows
+    cat.subcats.forEach(sub => {
+      const subPrevArr = mesesAno.map(m => getSubPrev(cat.id, sub, m, ano));
+      const subRealArr = mesesAno.map(m => sumR(entries.filter(e=>e.tipo==='receita'&&e.catId===cat.id&&e.subcategoria===sub&&new Date(e.date+'T12:00:00').getMonth()===m&&new Date(e.date+'T12:00:00').getFullYear()===ano)));
+      if(subPrevArr.every(v=>!v) && subRealArr.every(v=>!v)) return; // skip empty
+      h += `<tr class="pl-sub-row">
+        <td class="pl-label pl-cell" style="padding-left:20px;color:var(--text2)">${sub}</td>`;
+      mesesAno.forEach(m => {
+        h += `<td class="pl-cell">${fmtP(subPrevArr[m])}</td><td class="pl-cell">${fmtPNeg(subRealArr[m],'receita')}</td>`;
+      });
+      h += `</tr>`;
+    });
+  });
+
+  // Receitas total row
+  h += `<tr class="pl-total-row">
+    <td class="pl-label pl-cell" style="font-size:11px">TOTAL RECEITAS</td>`;
+  mesesAno.forEach(m => {
+    h += `<td class="pl-cell">${fmtP(recTotPrev[m])}</td><td class="pl-cell">${fmtPNeg(recTotReal[m],'receita')}</td>`;
+  });
+  h += `</tr>`;
+
+  // ── DESPESAS ─────────────────────────────────────────
+  h += `<tr class="pl-section-header"><td colspan="${1+mesesAno.length*2}">DESPESAS</td></tr>`;
+
+  const despCats = allCats('despesa');
+  const despTotPrev = new Array(12).fill(0);
+  const despTotReal = new Array(12).fill(0);
+
+  despCats.forEach(cat => {
+    const catPrev = new Array(12).fill(0);
+    const catReal = new Array(12).fill(0);
+
+    cat.subcats.forEach(sub => {
+      mesesAno.forEach(m => {
+        catPrev[m] += getSubPrev(cat.id, sub, m, ano);
+        // Real entries + virtual parcelamento entries
+        const mx = getMonthEntries(m, ano);
+        catReal[m] += sumR(mx.filter(e=>e.tipo==='despesa'&&e.catId===cat.id&&e.subcategoria===sub));
+      });
+    });
+
+    // Category header row
+    h += `<tr class="pl-cat-row">
+      <td class="pl-label pl-cell">${cat.icon||''} ${cat.label}</td>`;
+    mesesAno.forEach(m => {
+      despTotPrev[m] += catPrev[m];
+      despTotReal[m] += catReal[m];
+      h += `<td class="pl-cell">${fmtP(catPrev[m])}</td><td class="pl-cell">${fmtPNeg(catReal[m],'despesa')}</td>`;
+    });
+    h += `</tr>`;
+
+    // Subcategory rows
+    cat.subcats.forEach(sub => {
+      const subPrevArr = mesesAno.map(m => getSubPrev(cat.id, sub, m, ano));
+      const subRealArr = mesesAno.map(m => {
+        const mx = getMonthEntries(m, ano);
+        return sumR(mx.filter(e=>e.tipo==='despesa'&&e.catId===cat.id&&e.subcategoria===sub));
+      });
+      if(subPrevArr.every(v=>!v) && subRealArr.every(v=>!v)) return;
+      h += `<tr class="pl-sub-row">
+        <td class="pl-label pl-cell" style="padding-left:20px;color:var(--text2)">${sub}</td>`;
+      mesesAno.forEach(m => {
+        h += `<td class="pl-cell">${fmtP(subPrevArr[m])}</td><td class="pl-cell">${fmtPNeg(subRealArr[m],'despesa')}</td>`;
+      });
+      h += `</tr>`;
+    });
+  });
+
+  // Despesas total row
+  h += `<tr class="pl-total-row">
+    <td class="pl-label pl-cell" style="font-size:11px">TOTAL DESPESAS</td>`;
+  mesesAno.forEach(m => {
+    h += `<td class="pl-cell">${fmtP(despTotPrev[m])}</td><td class="pl-cell">${fmtPNeg(despTotReal[m],'despesa')}</td>`;
+  });
+  h += `</tr>`;
+
+  // ── SALDO ─────────────────────────────────────────────
+  h += `<tr style="background:#000032">
+    <td class="pl-label pl-cell" style="color:white;font-weight:700;font-size:11px">SALDO</td>`;
+  mesesAno.forEach(m => {
+    const saldoPrev = recTotPrev[m] - despTotPrev[m];
+    const saldoReal = recTotReal[m] - despTotReal[m];
+    const cp = saldoPrev>=0?'pos':'neg';
+    const cr = saldoReal>=0?'pos':'neg';
+    const vp = saldoPrev!==0?`<span class="pl-val ${cp}">${Math.abs(saldoPrev).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`:'<span class="pl-val zero">—</span>';
+    const vr = saldoReal!==0?`<span class="pl-val ${cr}">${Math.abs(saldoReal).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>`:'<span class="pl-val zero">—</span>';
+    h += `<td class="pl-cell" style="background:#000040">${vp}</td><td class="pl-cell" style="background:#000040">${vr}</td>`;
+  });
+  h += `</tr>`;
+
+  h += `</tbody></table>`;
+  container.innerHTML = h;
 }
 
 // ── LGPD Privacy consent ─────────────────────────────────
