@@ -653,7 +653,7 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* ── PLANILHA MODE ──────────────────────────────────────── */
-#planilha-container{border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden}
+#planilha-container{border-radius:var(--radius-lg);border:1px solid var(--border)}
 .pl-table{border-collapse:collapse;width:100%;min-width:900px}
 .pl-table th,.pl-table td{border:1px solid var(--border);padding:0}
 .pl-cell{padding:4px 8px;white-space:nowrap;font-size:11px}
@@ -809,7 +809,7 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
           <button onclick="changePlanilhaYear(1)" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:4px 10px;cursor:pointer;color:var(--text);font-size:13px">›</button>
         </div>
       </div>
-      <div id="planilha-container" style="overflow-x:auto;border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--bg)"></div>
+      <div style="border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--bg)"><div id="planilha-container" style="overflow-x:auto"></div></div>
     </div>
 
     <!-- RECEITAS -->
@@ -2697,17 +2697,18 @@ function renderPlanilha(){
   };
 
   // Sticky column styles
-  const STICKY  = `position:sticky;left:0;z-index:2;box-shadow:2px 0 4px rgba(0,0,0,0.10);`;
-  const STICKY2  = `position:sticky;left:0;z-index:3;box-shadow:2px 0 4px rgba(0,0,0,0.15);`; // for headers
+  const STICKY  = `position:sticky;left:0;z-index:2;`;
+  const STICKY2  = `position:sticky;left:0;z-index:3;`; // for headers
+  const STICKY_COL_BG = isDark ? '#161e30' : '#f0f4fa'; // same as odd-month alt grey
 
   // Cell style builders
   const thMonth = `background:${C.monthHead};color:white;text-align:center;font-weight:700;font-size:10px;letter-spacing:.06em;padding:5px 4px;white-space:nowrap;border:1px solid ${C.border}`;
   const thSub   = `background:${C.prevHead};color:rgba(255,255,255,0.9);text-align:center;font-size:9px;font-weight:600;padding:3px 4px;border:1px solid ${C.border};min-width:80px`;
-  const thLabel = `${STICKY2}background:${C.monthHead};color:white;font-weight:700;font-size:11px;padding:6px 10px;text-align:left;border:1px solid ${C.border};min-width:200px;max-width:200px`;
-  const tdSticky = bg => `${STICKY}background:${bg};font-size:11px;font-weight:600;padding:4px 10px;border:1px solid ${C.border};border-right:2px solid rgba(100,100,160,0.3);min-width:200px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis`;
-  const tdSub = bg => `${STICKY}background:${bg};font-size:11px;padding:4px 10px 4px 22px;border:1px solid ${C.border};border-right:2px solid rgba(100,100,160,0.3);min-width:200px;max-width:200px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis`;
+  const thLabel = `${STICKY2}background:${C.monthHead};color:white;font-weight:700;font-size:11px;padding:6px 10px;text-align:left;border:1px solid ${C.border};min-width:200px;max-width:200px;border-right:none`;
+  const tdSticky = bg => `${STICKY}background:${bg};font-size:11px;font-weight:600;padding:4px 10px;border:1px solid ${C.border};min-width:200px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis`;
+  const tdSub = bg => `${STICKY}background:${bg};font-size:11px;padding:4px 10px 4px 22px;border:1px solid ${C.border};min-width:200px;max-width:200px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis`;
   const tdVal = (bg,clickAttr) => `background:${bg};text-align:right;font-size:11px;font-family:'DM Mono',monospace;padding:4px 8px;border:1px solid ${C.border};cursor:${clickAttr?'pointer':'default'};white-space:nowrap;min-width:80px`;
-  const secHead = `${STICKY2}background:${C.secHeader};color:white;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.07em;padding:6px 10px;border:1px solid ${C.border};border-right:2px solid rgba(255,255,255,0.2)`;
+  const secHead = `${STICKY2}background:${C.secHeader};color:white;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.07em;padding:6px 10px;border:1px solid ${C.border}`;
 
   // Accumulate totals
   const recTotPrev = new Array(12).fill(0);
@@ -2729,7 +2730,7 @@ function renderPlanilha(){
   h += `<thead>`;
   // Row 1: sticky label col + month names (sticky top:0)
   h += `<tr style="position:sticky;top:0;z-index:10">`;
-  h += `<th rowspan="2" style="${thLabel};border-right:3px solid rgba(255,255,255,0.35)">ORIGEM</th>`;
+  h += `<th rowspan="2" style="${thLabel}">ORIGEM</th>`;
   mesesAno.forEach(m => {
     const bg = m%2===1 ? '#1a4f93' : C.monthHead;
     h += `<th colspan="2" style="${thMonth};background:${bg}">${MES_ABREV[m]}</th>`;
@@ -2774,7 +2775,7 @@ function renderPlanilha(){
       const sr = mesesAno.map(m => sumR(monthEntriesCache[m].filter(e=>e.tipo==='receita'&&e.catId===cat.id&&e.subcategoria===sub)));
       if(sp.every(v=>!v)&&sr.every(v=>!v)) return;
       h += `<tr class="pl-hover-row">`;
-      h += `<td style="${tdSub(subBg)}" title="${sub}">${sub}</td>`;
+      h += `<td style="${tdSub(STICKY_COL_BG)}" title="${sub}">${sub}</td>`;
       mesesAno.forEach(m => {
         const monthKey = ano+'-'+String(m+1).padStart(2,'0');
         const prevKey = encodeURIComponent(JSON.stringify({catId:cat.id,sub,tipo:'receita',field:'previsto',month:monthKey,curVal:sp[m]}));
@@ -2788,7 +2789,7 @@ function renderPlanilha(){
   });
 
   // Receitas total
-  h += `<tr><td style="${tdSticky(totalBg)};color:white;border-right:2px solid rgba(255,255,255,0.3)">TOTAL RECEITAS</td>`;
+  h += `<tr><td style="${tdSticky(totalBg)};color:white">TOTAL RECEITAS</td>`;
   mesesAno.forEach(m => {
     const mBgTot = m%2===1 ? (isDark?'#14304a':'#7a9ab8') : totalBg;
     h += `<td style="${tdVal(mBgTot,'')};color:white;font-weight:700">${fv(recTotPrev[m])}</td>`;
@@ -2827,7 +2828,7 @@ function renderPlanilha(){
       const sr = mesesAno.map(m => sumR(monthEntriesCache[m].filter(e=>e.tipo==='despesa'&&e.catId===cat.id&&e.subcategoria===sub)));
       if(sp.every(v=>!v)&&sr.every(v=>!v)) return;
       h += `<tr class="pl-hover-row">`;
-      h += `<td style="${tdSub(subBg)}" title="${sub}">${sub}</td>`;
+      h += `<td style="${tdSub(STICKY_COL_BG)}" title="${sub}">${sub}</td>`;
       mesesAno.forEach(m => {
         const monthKey = ano+'-'+String(m+1).padStart(2,'0');
         const prevKey = encodeURIComponent(JSON.stringify({catId:cat.id,sub,tipo:'despesa',field:'previsto',month:monthKey,curVal:sp[m]}));
@@ -2841,7 +2842,7 @@ function renderPlanilha(){
   });
 
   // Despesas total
-  h += `<tr><td style="${tdSticky(totalBg)};color:white;border-right:2px solid rgba(255,255,255,0.3)">TOTAL DESPESAS</td>`;
+  h += `<tr><td style="${tdSticky(totalBg)};color:white">TOTAL DESPESAS</td>`;
   mesesAno.forEach(m => {
     const mBgTotD = m%2===1 ? (isDark?'#14304a':'#7a9ab8') : totalBg;
     h += `<td style="${tdVal(mBgTotD,'')};color:white;font-weight:700">${fv(despTotPrev[m])}</td>`;
