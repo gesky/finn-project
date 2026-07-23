@@ -682,6 +682,22 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
   .pl-val{min-width:60px;font-size:10px}
 }
 
+
+/* ── NOTAS (Google Keep style) ──────────────────────────── */
+.nota-card{border-radius:12px;padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative;min-height:80px;border:1px solid rgba(0,0,0,0.08)}
+.nota-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.12)}
+[data-theme="dark"] .nota-card{border-color:rgba(255,255,255,0.08)}
+.nota-card-title{font-size:14px;font-weight:600;margin-bottom:6px;color:rgba(0,0,0,0.8);line-height:1.3}
+.nota-card-body{font-size:13px;color:rgba(0,0,0,0.65);line-height:1.5;white-space:pre-wrap;max-height:160px;overflow:hidden;position:relative}
+.nota-card-body::after{content:'';position:absolute;bottom:0;left:0;right:0;height:30px;background:linear-gradient(transparent,var(--nota-bg,#fff))}
+.nota-card-date{font-size:10px;color:rgba(0,0,0,0.4);margin-top:10px}
+[data-theme="dark"] .nota-card-title{color:rgba(255,255,255,0.9)}
+[data-theme="dark"] .nota-card-body{color:rgba(255,255,255,0.7)}
+[data-theme="dark"] .nota-card-date{color:rgba(255,255,255,0.35)}
+.nota-color-btn{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s}
+.nota-color-btn:hover,.nota-color-btn.sel{border-color:rgba(0,0,0,0.4);transform:scale(1.15)}
+[data-theme="dark"] .nota-color-btn.sel{border-color:rgba(255,255,255,0.6)}
+
 </style>
 </head>
 <body>
@@ -740,6 +756,7 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
     <div class="nav-item" onclick="showPage('metas',this)"><div class="nav-item-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>Metas</div>
 
     <div class="nav-item nav-mobile-hide" onclick="showPage('cardapio',this)"><div class="nav-item-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>Finn Home</div>
+    <div class="nav-item" onclick="showPage('notas',this)"><div class="nav-item-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>Notas</div>
     <div class="nav-item nav-mobile-hide" onclick="showPage('configuracoes',this)"><div class="nav-item-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>Configurações</div>
     <div class="sidebar-user" id="sidebar-user-block">
       <div class="sidebar-user-avatar" id="user-avatar-initials"></div>
@@ -947,6 +964,43 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
       </div>
     </div>
 
+    <!-- NOTAS -->
+    <div id="page-notas" class="page">
+      <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+        <div><div class="page-title">Notas</div><div class="page-sub">Seus post-its digitais</div></div>
+        <button class="btn-add" onclick="abrirNovaNota()">+ Nova nota</button>
+      </div>
+      <div id="notas-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px"></div>
+      <div id="notas-empty" style="display:none;text-align:center;padding:60px 20px;color:var(--text3)">
+        <div style="font-size:40px;margin-bottom:12px">📝</div>
+        <div style="font-size:15px;font-weight:500">Nenhuma nota ainda</div>
+        <div style="font-size:13px;margin-top:6px">Clique em "+ Nova nota" para começar</div>
+      </div>
+    </div>
+
+    <!-- MODAL NOTA -->
+    <div class="modal-overlay" id="modal-nota">
+      <div class="modal" style="max-width:480px">
+        <div class="modal-header" id="modal-nota-header" style="cursor:pointer" onclick="focusNotaTitle()">
+          <input id="nota-titulo" placeholder="Título" style="font-size:16px;font-weight:600;background:none;border:none;outline:none;width:100%;color:var(--text);font-family:'Sora',sans-serif">
+          <button class="modal-close" onclick="fecharNota()">×</button>
+        </div>
+        <div class="modal-body" style="padding:0">
+          <textarea id="nota-corpo" placeholder="Escreva sua nota..." style="width:100%;min-height:200px;padding:16px;border:none;outline:none;resize:none;font-size:14px;font-family:'Sora',sans-serif;background:none;color:var(--text);line-height:1.6;box-sizing:border-box"></textarea>
+          <div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border)">
+            <div style="display:flex;gap:8px;align-items:center">
+              <span style="font-size:11px;color:var(--text3)">Cor:</span>
+              <div id="nota-cores" style="display:flex;gap:6px"></div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button id="nota-delete-btn" onclick="deletarNota()" style="font-size:12px;color:var(--text3);background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:var(--radius)">🗑 Excluir</button>
+              <button onclick="salvarNota()" class="btn-save" style="font-size:12px;padding:6px 14px">Salvar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- CONFIGURAÇÕES -->
     <div id="page-configuracoes" class="page">
       <div class="page-header"><div><div class="page-title">Configurações</div><div class="page-sub">Categorias, usuários e dados</div></div></div>
@@ -976,13 +1030,8 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
     <div class="modal-body">
       <div class="form-row">
         <div class="fg"><label>Tipo</label><select id="me-tipo" onchange="onEntryTipoChange()"><option value="receita">Receita</option><option value="despesa">Despesa</option></select></div>
-        <div class="fg"><label>Data <span style="font-size:11px;color:var(--text3);font-weight:400">(opcional)</span></label>
-          <div style="display:flex;align-items:center;gap:8px">
-            <input type="date" id="me-date" style="flex:1;min-width:0;max-width:calc(100% - 90px)">
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);cursor:pointer;white-space:nowrap;width:82px;flex-shrink:0">
-              <input type="checkbox" id="me-no-date" onchange="toggleNoDate(this)" style="cursor:pointer;margin:0;flex-shrink:0">Sem data
-            </label>
-          </div>
+        <div class="fg"><label>Data</label>
+          <input type="date" id="me-date" style="width:100%">
         </div>
       </div>
       <div class="form-row">
@@ -1811,6 +1860,7 @@ function renderPage(id){
   else if(id==='configuracoes')renderConfig();
   else if(id==='cardapio')loadCardapioData();
   else if(id==='planilha')renderPlanilha();
+  else if(id==='notas')loadNotas();
 }
 
 // ── NAV ──────────────────────────────────────────────────
@@ -2892,6 +2942,124 @@ window.planilhaClick = async encoded => {
   }
 };
 
+
+// ── NOTAS (Google Keep style) ────────────────────────────
+const NOTA_CORES = [
+  {name:'Padrão',   light:'#ffffff', dark:'#1e1e1e'},
+  {name:'Vermelho', light:'#ffd4d4', dark:'#3d1515'},
+  {name:'Laranja',  light:'#ffe8c8', dark:'#3d2408'},
+  {name:'Amarelo',  light:'#fff9c4', dark:'#3d3800'},
+  {name:'Verde',    light:'#d4f5d4', dark:'#0d3d0d'},
+  {name:'Azul',     light:'#d4e8ff', dark:'#0d2040'},
+  {name:'Roxo',     light:'#ead4ff', dark:'#2a0d40'},
+  {name:'Cinza',    light:'#e8e8e8', dark:'#2a2a2a'},
+];
+
+let notas = [];
+let _notaEditing = null;
+let _notaCorIdx = 0;
+
+async function loadNotas(){
+  if(!currentUser) return;
+  try{
+    const snap = await getDoc(doc(db,'notas',currentUser.uid));
+    if(snap.exists()) notas = snap.data().items||[];
+  } catch(e){ notas=[]; }
+  renderNotas();
+}
+
+async function saveNotas(){
+  if(!currentUser) return;
+  await setDoc(doc(db,'notas',currentUser.uid),{items:notas,updatedAt:new Date().toISOString()});
+}
+
+function renderNotas(){
+  const grid = document.getElementById('notas-grid');
+  const empty = document.getElementById('notas-empty');
+  if(!grid) return;
+  if(!notas.length){ grid.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  const isDark = document.documentElement.getAttribute('data-theme')==='dark';
+  grid.innerHTML = notas.slice().reverse().map((n,ri)=>{
+    const i = notas.length-1-ri;
+    const cor = NOTA_CORES[n.cor||0];
+    const bg = isDark ? cor.dark : cor.light;
+    const d = new Date(n.updatedAt||n.createdAt||Date.now());
+    const dateStr = d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear();
+    return `<div class="nota-card" style="background:${bg};--nota-bg:${bg}" onclick="abrirNota(${i})">
+      ${n.titulo?`<div class="nota-card-title">${esc(n.titulo)}</div>`:''}
+      ${n.corpo?`<div class="nota-card-body">${esc(n.corpo)}</div>`:''}
+      <div class="nota-card-date">${dateStr}</div>
+    </div>`;
+  }).join('');
+}
+
+window.abrirNovaNota=()=>{
+  _notaEditing=null;
+  document.getElementById('nota-titulo').value='';
+  document.getElementById('nota-corpo').value='';
+  document.getElementById('nota-delete-btn').style.display='none';
+  setNotaCor(0);
+  // Set modal bg to default
+  document.querySelector('#modal-nota .modal').style.background='';
+  openModal('modal-nota');
+  setTimeout(()=>document.getElementById('nota-corpo').focus(),100);
+};
+
+window.abrirNota=i=>{
+  _notaEditing=i;
+  const n=notas[i];
+  document.getElementById('nota-titulo').value=n.titulo||'';
+  document.getElementById('nota-corpo').value=n.corpo||'';
+  document.getElementById('nota-delete-btn').style.display='';
+  setNotaCor(n.cor||0);
+  openModal('modal-nota');
+};
+
+function setNotaCor(idx){
+  _notaCorIdx=idx;
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  const cor=NOTA_CORES[idx];
+  const bg=isDark?cor.dark:cor.light;
+  document.querySelector('#modal-nota .modal').style.background=bg;
+  const coresEl=document.getElementById('nota-cores');
+  if(coresEl){
+    coresEl.innerHTML=NOTA_CORES.map((c,i)=>{
+      const cbg=isDark?c.dark:c.light;
+      return `<div class="nota-color-btn${i===idx?' sel':''}" style="background:${cbg}" onclick="setNotaCor(${i})" title="${c.name}"></div>`;
+    }).join('');
+  }
+}
+
+window.focusNotaTitle=()=>document.getElementById('nota-titulo').focus();
+
+window.salvarNota=async()=>{
+  const titulo=document.getElementById('nota-titulo').value.trim();
+  const corpo=document.getElementById('nota-corpo').value.trim();
+  if(!titulo&&!corpo) return fecharNota();
+  const now=new Date().toISOString();
+  if(_notaEditing!==null){
+    notas[_notaEditing]={...notas[_notaEditing],titulo,corpo,cor:_notaCorIdx,updatedAt:now};
+  } else {
+    notas.push({titulo,corpo,cor:_notaCorIdx,createdAt:now,updatedAt:now});
+  }
+  await saveNotas();
+  fecharNota();
+  renderNotas();
+};
+
+window.deletarNota=async()=>{
+  if(_notaEditing===null) return;
+  const ok=await finnConfirm('Excluir esta nota permanentemente?','Excluir nota',true);
+  if(!ok) return;
+  notas.splice(_notaEditing,1);
+  await saveNotas();
+  fecharNota();
+  renderNotas();
+};
+
+window.fecharNota=()=>closeModal('modal-nota');
+
 // ── LGPD Privacy consent ─────────────────────────────────
 function checkPrivacyConsent(){
   if(!localStorage.getItem('finn-privacy-consent')){
@@ -3286,8 +3454,6 @@ window.openEntryModal=(tipo='despesa',catId,subcat)=>{
   const _hoje=new Date();
   document.getElementById('me-date').value=_hoje.getFullYear()+'-'+String(_hoje.getMonth()+1).padStart(2,'0')+'-'+String(_hoje.getDate()).padStart(2,'0');
   document.getElementById('me-val').value='';document.getElementById('me-desc').value='';
-  const noDateCb=document.getElementById('me-no-date');
-  if(noDateCb){noDateCb.checked=false;const di=document.getElementById('me-date');di.disabled=false;di.style.opacity='1';}
   document.getElementById('me-tipo').value=tipo;
   document.getElementById('parc-check-row').style.display=tipo==='despesa'?'block':'none';
   document.getElementById('me-is-parc').checked=false;
@@ -3341,6 +3507,26 @@ window.saveEntry=async()=>{
 
   if(!val){await finnAlert('Informe o valor.');return;}
   if(!catId){await finnAlert('Selecione uma categoria.');return;}
+
+  // Check for duplicate value in same category/subcategory this month
+  if(!editingEntryId && !isParcChecked){
+    const d=date?new Date(date+'T12:00:00'):new Date();
+    const mx=getMonthEntries(d.getMonth(),d.getFullYear());
+    const dup=mx.find(e=>e.tipo===tipo&&e.catId===catId&&e.subcategoria===subcat&&Math.abs(Number(e.valor)-val)<0.01&&!e.isVirtual);
+    if(dup){
+      const cat=allCats(tipo).find(c=>c.id===catId);
+      const catLabel=cat?cat.label:catId;
+      const ok=await finnDialog({
+        title:'Valor duplicado',
+        msg:`O valor de <strong>${fmt(val)}</strong> já está cadastrado em <strong>${catLabel} › ${subcat||'—'}</strong>.<br><br>Deseja adicionar mesmo assim?`,
+        type:'confirm',
+        confirmText:'Cadastrar',
+        cancelText:'Cancelar',
+        confirmDanger:false
+      });
+      if(!ok) return;
+    }
+  }
 
   const por=currentUser.displayName||currentUser.email;
 
