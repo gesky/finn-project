@@ -1474,7 +1474,7 @@ let _cartaoCorSelecionada='#1a1a2e';
 let _editingCartaoId=null;
 let viewMonth=new Date().getMonth(), viewYear=new Date().getFullYear();
 let entries=[], goals=[], investments=[], invMovimentos=[];
-let ANTHROPIC_KEY = null;
+let GEMINI_KEY = null;
 let cats={receita:[],despesa:[]}, previstos={}, invTipos=[...DEFAULT_INV_TIPOS];
 let editingEntryId=null, editingGoalId=null, editingInvId=null, editingParcId=null;
 let parcelamentos=[];
@@ -1578,7 +1578,7 @@ async function initApp(){
 async function loadApiKey(){
   try {
     const snap = await getDoc(doc(db,'config','secrets'));
-    if(snap.exists()) ANTHROPIC_KEY = snap.data().anthropicKey || null;
+    if(snap.exists()) GEMINI_KEY = snap.data().geminiKey || null;
   } catch(e){ console.warn('Could not load API key', e); }
 }
 async function loadConfig(){
@@ -4327,9 +4327,9 @@ window.deleteAllOrphans=async(ids)=>{
 };
 
 function renderCfgDados(){
-  const keyStatus = ANTHROPIC_KEY ? '✓ Chave configurada' : '✗ Não configurada';
+  const keyStatus = GEMINI_KEY ? '✓ Chave configurada' : '✗ Não configurada';
   const isDark = document.documentElement.getAttribute('data-theme')==='dark';
-  const keyColor = ANTHROPIC_KEY ? 'var(--green)' : 'var(--red)';
+  const keyColor = GEMINI_KEY ? 'var(--green)' : 'var(--red)';
   document.getElementById('cfg-dados').innerHTML=`
     <div class="cfg-section">
       <div class="cfg-section-title">Backup e restauração</div>
@@ -4357,13 +4357,13 @@ function renderCfgDados(){
       <p style="font-size:11px;color:var(--text3)">A exportação inclui todos os seus lançamentos, metas, investimentos e configurações em formato JSON. A exclusão é permanente e irreversível.</p>
     </div>
     <div class="cfg-section">
-      <div class="cfg-section-title">Chave da API — Finn AI</div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">A chave é salva no Firebase e carregada automaticamente em todos os dispositivos. Apenas administradores podem alterar.</p>
+      <div class="cfg-section-title">Chave da API — Gemini (Google)</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Chave do Google Gemini — gratuita em <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com</a>. Salva no Firebase e carregada automaticamente. Apenas administradores podem alterar.</p>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <span style="font-size:13px;font-weight:500;color:${keyColor}">${keyStatus}</span>
       </div>
       ${isAdmin ? `<div style="display:flex;gap:8px;align-items:center">
-        <input id="api-key-input" type="password" placeholder="sk-ant-api03-..." style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)">
+        <input id="api-key-input" type="password" placeholder="AIzaSy..." style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:'Sora',sans-serif;background:var(--bg);color:var(--text)">
         <button class="btn-add" onclick="saveApiKey()">Salvar</button>
       </div>` : '<p style="font-size:12px;color:var(--text3)">Apenas o administrador pode alterar a chave.</p>'}
     </div>
@@ -4464,10 +4464,10 @@ window.restaurarBackup = async (event) => {
 window.saveApiKey=async()=>{
   if(!isAdmin){await finnAlert('Apenas administradores podem alterar a chave API.','Acesso restrito');return;}
   const key=document.getElementById('api-key-input')?.value.trim();
-  if(!key||!key.startsWith('sk-ant-')){await finnAlert('Chave inválida. Deve começar com sk-ant-','Chave inválida');return;}
+  if(!key){await finnAlert('Informe a chave da API do Gemini.','Chave inválida');return;}
   try{
-    await setDoc(doc(db,'config','secrets'),{anthropicKey:key});
-    ANTHROPIC_KEY=key;
+    await setDoc(doc(db,'config','secrets'),{geminiKey:key});
+    GEMINI_KEY=key;
     await finnAlert('Chave API salva com sucesso!','✓ Salvo');
     renderCfgDados();
   }catch(e){await finnAlert('Erro ao salvar: '+e.message,'Erro');}
@@ -4598,22 +4598,61 @@ window.saveSubcat=async()=>{
 };
 window.deleteSubcat=async(tipo,catId,sub)=>{
   const linked=entries.filter(e=>e.catId===catId&&e.subcategoria===sub);
-  const msg=linked.length>0
-    ?`Excluir subcategoria "${sub}" e seus ${linked.length} lançamento(s) vinculado(s)?\n\nEsta ação não pode ser desfeita.`
-    :`Excluir subcategoria "${sub}"?`;
-  if(!await finnConfirm(msg,'Confirmar',false))return;
-  // Delete linked entries
+  if(linked.length>0){
+    // Has history — offer archive instead of delete
+    const choice=await finnDialog({
+      title:'Subcategoria com histórico',
+      msg:`<strong>${sub}</strong> possui ${linked.length} lançamento(s) em meses anteriores.<br><br>
+      <b>Arquivar</b> — remove dos lançamentos futuros, mas mantém todo o histórico.<br>
+      <b>Excluir tudo</b> — apaga a subcategoria e todos os lançamentos permanentemente.`,
+      type:'confirm',
+      confirmText:'📦 Arquivar',
+      cancelText:'Cancelar',
+      confirmDanger:false
+    });
+    if(!choice) return;
+    // Archive: move to archived list, keep entries intact
+    const cat=cats[tipo].find(c=>c.id===catId);
+    if(cat){
+      cat.subcats=cat.subcats.filter(s=>s!==sub);
+      if(!cat.archivedSubcats) cat.archivedSubcats=[];
+      if(!cat.archivedSubcats.includes(sub)) cat.archivedSubcats.push(sub);
+      await saveCategories();
+    }
+    renderCfgCats(tipo);
+    await finnAlert(`"${sub}" foi arquivada. O histórico está preservado.`,'✓ Arquivada');
+    return;
+  }
+  // No history — just delete normally
+  if(!await finnConfirm(`Excluir subcategoria "${sub}"?`,'Excluir',true))return;
+  const cat=cats[tipo].find(c=>c.id===catId);
+  if(cat){cat.subcats=cat.subcats.filter(s=>s!==sub);await saveCategories();}
+  renderCfgCats(tipo);
+};
+
+window.unarchiveSubcat=async(tipo,catId,sub)=>{
+  const cat=cats[tipo].find(c=>c.id===catId);
+  if(!cat) return;
+  cat.archivedSubcats=(cat.archivedSubcats||[]).filter(s=>s!==sub);
+  if(!cat.subcats.includes(sub)) cat.subcats.push(sub);
+  await saveCategories();
+  renderCfgCats(tipo);
+};
+
+window.deleteArchivedSubcat=async(tipo,catId,sub)=>{
+  const linked=entries.filter(e=>e.catId===catId&&e.subcategoria===sub);
+  const msg=`Excluir permanentemente "${sub}" e seus ${linked.length} lançamento(s)?<br><br>Esta ação não pode ser desfeita.`;
+  if(!await finnConfirm(msg,'Excluir permanentemente',true))return;
   for(const e of linked) await deleteDoc(doc(db,'entries',e.id));
-  // Delete previstos keys for this subcat
   const newPrevistos={...previstos};
   Object.keys(previstos).forEach(k=>{
     if(k.startsWith(catId+'__'+sub+'__')||k===catId+'__'+sub) delete newPrevistos[k];
   });
   previstos=newPrevistos;
   await savePrevistos();
-  // Remove subcat from category
   const cat=cats[tipo].find(c=>c.id===catId);
-  if(cat){cat.subcats=cat.subcats.filter(s=>s!==sub);await saveCategories();}
+  if(cat) cat.archivedSubcats=(cat.archivedSubcats||[]).filter(s=>s!==sub);
+  await saveCategories();
   renderCfgCats(tipo);
 };
 
@@ -4631,7 +4670,7 @@ document.querySelectorAll('.modal-overlay').forEach(o=>{
 updateMonthLabel();
 
 // ── AI ASSISTANT ──────────────────────────────────────────
-// ANTHROPIC_KEY declared at top
+// GEMINI_KEY declared at top
 let aiOpen = false;
 let aiConversations = []; // {id, date, messages:[{role,content,time}]}
 let aiCurrentConv = null;
@@ -4801,10 +4840,10 @@ window.sendAiMessage = async () => {
   const input = document.getElementById('ai-input');
   const msg = input.value.trim();
   if(!msg || aiTyping) return;
-  if(!ANTHROPIC_KEY){
+  if(!GEMINI_KEY){
     if(!aiCurrentConv) startNewConv();
     const t = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    aiCurrentConv.messages.push({role:'assistant',content:'⚠️ Chave da API não configurada. Acesse Configurações → Dados para adicionar a chave da Anthropic.',time:t});
+    aiCurrentConv.messages.push({role:'assistant',content:'⚠️ Chave do Gemini não configurada. Acesse Configurações → Dados para adicionar a chave.',time:t});
     renderAiMessages();
     return;
   }
@@ -4836,22 +4875,34 @@ window.sendAiMessage = async () => {
       .slice(-10) // keep last 10 messages for context
       .map(m=>({role:m.role, content:m.content}));
 
-    const res = await fetch('https://api.anthropic.com/v1/messages',{
+    // Convert messages to Gemini format
+    // Gemini uses 'user'/'model' roles and system prompt is injected in first user message
+    const geminiContents = [];
+    // Add system prompt as first user turn + empty model turn (Gemini requirement)
+    geminiContents.push({role:'user', parts:[{text: systemPrompt + '\n\n---\nPrimeira mensagem do usuário:'}]});
+    geminiContents.push({role:'model', parts:[{text:'Entendido! Estou pronto para ajudar com as finanças do casal.'}]});
+    // Add conversation history
+    apiMessages.forEach(m => {
+      geminiContents.push({
+        role: m.role==='assistant'?'model':'user',
+        parts:[{text: m.content}]
+      });
+    });
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':ANTHROPIC_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',
-        max_tokens:1000,
-        system: systemPrompt,
-        messages: apiMessages
+        contents: geminiContents,
+        generationConfig:{maxOutputTokens:1000, temperature:0.7}
       })
     });
 
     const data = await res.json();
     thinkEl.remove();
 
-    if(data.content&&data.content[0]){
-      const reply = data.content[0].text;
+    if(data.candidates&&data.candidates[0]?.content?.parts?.[0]){
+      const reply = data.candidates[0].content.parts[0].text;
       const replyTime = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
       // Execute any actions embedded in the reply
       const {cleanReply, summary} = await executeFinnActions(reply);
@@ -4860,7 +4911,8 @@ window.sendAiMessage = async () => {
       saveAiConversation();
       renderAiMessages();
     } else {
-      throw new Error(data.error?.message||'Resposta inválida');
+      const errMsg = data.error?.message || (data.promptFeedback?.blockReason ? 'Conteúdo bloqueado: '+data.promptFeedback.blockReason : 'Resposta inválida');
+      throw new Error(errMsg);
     }
   } catch(err) {
     document.getElementById(thinkId)?.remove();
