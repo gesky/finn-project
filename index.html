@@ -535,6 +535,7 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
 .dash-title-cursor::after{content:'|';animation:blink .7s step-end infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
+.mobile-only{display:none}
 /* ── MOBILE EXPERIENCE ──────────────────────────────────── */
 @media(max-width:768px){
   /* Hide desktop-only nav items on mobile */
@@ -636,6 +637,8 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);font-s
   .page-header .btn-add{display:none!important}
   /* Hide desktop-only elements */
   .desktop-only{display:none!important}
+  /* Show mobile-only elements only on mobile (hidden on desktop below) */
+  .mobile-only{display:block}
   /* Show mobile previsto value instead of input */
   .subcat-prev-input{display:none!important}
   .subcat-prev-mobile{display:inline!important}
@@ -3396,18 +3399,31 @@ function renderCatPage(tipo,metricsId,catsId){
     const catE=typeE.filter(e=>e.catId===cat.id);
     const catReal=sumR(catE);
     const catPrev=cat.subcats.reduce((s,sub)=>s+getSubPrev(cat.id,sub),0);
-    const pct=catPrev>0?Math.round((catReal/catPrev)*100):0;
-    // For receita: green when above 100% (good), amber/red when below. For despesa: opposite.
-    const barColor=tipo==='receita'
-      ?(pct>=100?'var(--green)':pct>=60?'var(--amber)':'var(--red)')
-      :pctColor(pct);
+    const catResto=catPrev-catReal;
+    // Cor e label do "ainda pode gastar"
+    let restoColor,restoLabel,restoVal;
+    if(catPrev>0){
+      if(tipo==='despesa'){
+        restoColor=catResto>0?'var(--green)':'var(--red)';
+        restoLabel=catResto>0?'ainda pode gastar':'acima do previsto';
+        restoVal=(catResto>=0?'':'-')+fmt(Math.abs(catResto));
+      } else {
+        // receita: verde se ainda falta receber, vermelho se já recebeu acima
+        restoColor=catResto>0?'var(--amber)':'var(--green)';
+        restoLabel=catResto>0?'ainda a receber':'recebeu acima';
+        restoVal=(catResto>=0?'':'+R$ ')+fmt(Math.abs(catResto));
+      }
+    }
     const bodyId='catbody-'+cat.id;
     html+=`<div class="cat-section">
       <div class="cat-header" onclick="toggleCatBody('${bodyId}')">
         <span class="cat-icon">${cat.icon}</span>
-        <span class="cat-name" style="flex:1">${cat.label}</span>
-        <div class="desktop-only" style="width:90px;flex-shrink:0;padding:0 12px;display:flex;align-items:center;gap:5px">
-          ${catPrev>0?`<div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;background:${barColor};width:${Math.min(100,pct)}%"></div></div><span style="font-size:11px;font-family:'DM Mono',monospace;color:${barColor};min-width:30px;text-align:right">${Math.min(100,pct)}%</span>`:''}
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+          <span class="cat-name">${cat.label}</span>
+          ${catPrev>0?`<span class="mobile-only" style="font-size:10px;color:${restoColor};font-family:'DM Mono',monospace;white-space:nowrap">${restoLabel}: ${restoVal}</span>`:''}
+        </div>
+        <div class="desktop-only" style="flex-shrink:0;padding:0 12px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:1px;min-width:140px">
+          ${catPrev>0?`<span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">${restoLabel}</span><span style="font-size:13px;font-weight:600;font-family:'DM Mono',monospace;color:${restoColor}">${restoVal}</span>`:''}
         </div>
         <div class="subcat-col" style="width:140px;flex-shrink:0;flex-direction:column;align-items:flex-end;justify-content:center;gap:0">
           <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;line-height:1.2">Previsto</div>
