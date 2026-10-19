@@ -3391,8 +3391,7 @@ function renderCatPage(tipo,metricsId,catsId){
     <div class="metric-card"><div class="metric-label" style="color:${isSuperavit?'var(--green)':'var(--red)'}">${isSuperavit?'Superávit':'Déficit'}</div><div class="metric-value ${isSuperavit?'pos':'neg'}">${fmt(Math.abs(saldo))}</div></div>
     `:`
     <div class="metric-card"><div class="metric-label" style="color:${saldoReal>=0?'var(--green)':'var(--red)'}">Saldo do mês</div><div class="metric-value ${saldoReal>=0?'pos':'neg'}">${saldoReal<0?'−':''}${fmt(Math.abs(saldoReal))}</div></div>
-    `}
-    <div class="metric-card"><div class="metric-label">% ${tipo==='receita'?'recebido':'uso'}</div><div class="metric-value">${totalP>0?Math.round((tipo==='receita'?totalR:totalR)/totalP*100):0}%</div></div>`;
+    `}`;
 
   let html='';
   allCats(tipo).forEach(cat=>{
