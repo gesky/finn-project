@@ -3484,7 +3484,12 @@ window.onSubPrevBlurData=async el=>{
   const v=parseFloat(el.value.replace(',','.'))||0;
   el.value=v>0?v.toFixed(2):'';
   await saveSubPrev(catId,sub,v);
-  refreshActivePage();
+  // Delay para não destruir outro input que o usuário possa estar focando
+  setTimeout(()=>{
+    if(!document.activeElement||!document.activeElement.classList.contains('subcat-prev-input')){
+      refreshActivePage();
+    }
+  },150);
 };
 window.onSubPrevKeydown=(e,el)=>{if(e.key==='Enter')el.blur();if(e.key==='Escape'){el.value='';el.blur();}};
 window.toggleNoDate=cb=>{
@@ -4905,17 +4910,19 @@ function buildContext(){
 
   return `Você é o Finn, assistente financeiro pessoal do casal Pedro e Amanda. Personalidade amigável e direta — como um amigo entendido de finanças. Responda em português, conciso (máximo 4 linhas). Sem perguntas desnecessárias.
 
-VOCÊ PODE EXECUTAR AÇÕES no sistema. Quando o usuário pedir para definir valores previstos, adicionar orçamentos, etc, execute a ação E confirme.
+VOCÊ PODE EXECUTAR AÇÕES no sistema, mas SOMENTE quando o usuário usar palavras explícitas de comando como: "define", "coloca", "muda", "ajusta", "set", "salva", "cadastra" um valor previsto. NUNCA execute actions em resposta a perguntas, análises, sugestões ou dúvidas — só execute quando houver uma instrução direta e explícita.
 
 PARA EXECUTAR UMA AÇÃO, inclua ao final da sua resposta (pode ter várias):
 %%ACTION:{"type":"set_previsto","catId":"ID_EXATO","sub":"NOME_EXATO_DA_SUB","months":["YYYY-MM","YYYY-MM"],"valor":NUMERO}%%
 
 REGRAS DE AÇÃO:
+- Só execute se o usuário pediu explicitamente para alterar/definir um valor previsto
 - Use SEMPRE o catId e sub EXATOS como aparecem em CATEGORIAS abaixo
 - months: array com os meses no formato "YYYY-MM"
 - valor: número sem formatação (ex: 19.90)
 - Gere um %%ACTION%% para cada ação distinta
 - Depois do %%ACTION%% confirme ao usuário o que foi feito
+- Se tiver dúvida se o usuário quer executar ou só perguntar, NÃO execute — pergunte antes
 
 DATA ATUAL: ${new Date().toLocaleDateString('pt-BR')} | Ano: ${curYear} | Mês atual: ${curMonth}
 
