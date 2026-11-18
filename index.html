@@ -1613,8 +1613,7 @@ async function loadConfig(){
   const cd=await getDoc(doc(db,'config','categories'));
   cats=cd.exists()?cd.data():JSON.parse(JSON.stringify(DEFAULT_CATS));
   if(!cd.exists()) await saveCategories();
-  const pd=await getDoc(doc(db,'config','previstos'));
-  if(pd.exists()) previstos=pd.data();
+  // previstos carregado via onSnapshot em listenAll()
   const id=await getDoc(doc(db,'config','invTipos'));
   invTipos=id.exists()?(id.data().tipos||DEFAULT_INV_TIPOS):[...DEFAULT_INV_TIPOS];
   if(!id.exists()) await setDoc(doc(db,'config','invTipos'),{tipos:invTipos});
@@ -1873,6 +1872,12 @@ function listenAll(){
     if(activePage()==='dashboard') renderDashboard();
   }));
   unsubs.push(onSnapshot(collection(db,'cartoes'),s=>{cartoes=s.docs.map(d=>({id:d.id,...d.data()}));if(activePage()==='cartoes')renderCartoes();}));
+  unsubs.push(onSnapshot(doc(db,'config','previstos'),s=>{
+    if(s.exists()) previstos=s.data();
+    // Só re-renderiza se não há input de previsto em foco (evita loop durante edição)
+    const editing=document.activeElement&&document.activeElement.classList.contains('subcat-prev-input');
+    if(!editing&&(activePage()==='despesas'||activePage()==='receitas')) refreshActivePage();
+  }));
 }
 
 function activePage(){const el=document.querySelector('.page.active');return el?el.id.replace('page-',''):'';}
@@ -4910,7 +4915,7 @@ function buildContext(){
 
   return `Você é o Finn, assistente financeiro pessoal do casal Pedro e Amanda. Personalidade amigável e direta — como um amigo entendido de finanças. Responda em português, conciso (máximo 4 linhas). Sem perguntas desnecessárias.
 
-VOCÊ PODE EXECUTAR AÇÕES no sistema, mas SOMENTE quando o usuário usar palavras explícitas de comando como: "define", "coloca", "muda", "ajusta", "set", "salva", "cadastra" um valor previsto. NUNCA execute actions em resposta a perguntas, análises, sugestões ou dúvidas — só execute quando houver uma instrução direta e explícita.
+VOCÊ PODE EXECUTAR AÇÕES no sistema, mas SOMENTE quando o usuário usar palavras explícitas de comando como: "define", "coloca", "muda", "ajusta", "set", "salva", "cadastra" um valor previsto. NUNCA execute actions em resposta a perguntas, análises, sugestões ou dúvidas. Se tiver dúvida se o usuário quer executar ou só perguntar, NÃO execute e pergunte antes.
 
 PARA EXECUTAR UMA AÇÃO, inclua ao final da sua resposta (pode ter várias):
 %%ACTION:{"type":"set_previsto","catId":"ID_EXATO","sub":"NOME_EXATO_DA_SUB","months":["YYYY-MM","YYYY-MM"],"valor":NUMERO}%%
@@ -4922,7 +4927,6 @@ REGRAS DE AÇÃO:
 - valor: número sem formatação (ex: 19.90)
 - Gere um %%ACTION%% para cada ação distinta
 - Depois do %%ACTION%% confirme ao usuário o que foi feito
-- Se tiver dúvida se o usuário quer executar ou só perguntar, NÃO execute — pergunte antes
 
 DATA ATUAL: ${new Date().toLocaleDateString('pt-BR')} | Ano: ${curYear} | Mês atual: ${curMonth}
 
