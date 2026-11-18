@@ -1407,6 +1407,32 @@ mark{background:#3437ff22;color:inherit;border-radius:2px;padding:0 2px}
   </div>
 </div>
 
+<!-- MODAL PREVISTO EM LOTE -->
+<div class="modal-overlay" id="modal-prev-lote">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <span class="modal-title" id="mpl-title">Definir previsto em lote</span>
+      <button class="modal-close" onclick="closeModal('modal-prev-lote')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row single" style="margin-bottom:12px">
+        <div class="fg"><label>Valor mensal (R$)</label><input type="text" inputmode="decimal" id="mpl-val" placeholder="0,00"></div>
+      </div>
+      <div style="margin-bottom:8px;font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Meses</div>
+      <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-cancel" style="font-size:11px;padding:4px 10px" onclick="mplSelectAll()">Marcar todos</button>
+        <button class="btn-cancel" style="font-size:11px;padding:4px 10px" onclick="mplSelectNone()">Desmarcar todos</button>
+        <button class="btn-cancel" style="font-size:11px;padding:4px 10px" onclick="mplSelectYear()">Ano todo</button>
+      </div>
+      <div id="mpl-months" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px"></div>
+      <div class="btn-row">
+        <button class="btn-cancel" onclick="closeModal('modal-prev-lote')">Cancelar</button>
+        <button class="btn-save" onclick="savePrevLote()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL PARCELAMENTO -->
 <div class="modal-overlay" id="modal-parc">
   <div class="modal">
@@ -3349,12 +3375,6 @@ function getSubPrev(catId,sub,m,y){
   let base=0;
   if(previstos[monthKey]!==undefined) base=Number(previstos[monthKey]||0);
   else base=Number(previstos[catId+'__'+sub]||0);
-  // Auto-add parcelamento mensalidade as previsto for non-first months
-  parcelamentos.forEach(p=>{
-    if(p.catId!==catId||(p.subcategoria||'')!==sub) return;
-    const idx=getParcIdx(p,mm,yy);
-    if(idx>1&&idx<=Number(p.numParcelas||1)) base+=getParcMensalidade(p);
-  });
   return base;
 }
 async function saveSubPrev(catId,sub,val,m,y){
@@ -3457,8 +3477,9 @@ function renderCatPage(tipo,metricsId,catsId){
               <span class="subcat-prev-mobile" style="display:none;font-size:12px;color:var(--text2);font-family:'DM Mono',monospace">${subP>0?fmt(subP):'—'}</span>
             </div>
             <div class="subcat-col" style="width:140px;flex-shrink:0"><span class="${tipo==='receita'?'pos':subR>0?'neg':''}" style="font-size:13px;font-family:'DM Mono',monospace">${subR>0?(tipo==='receita'?'+':'-')+fmt(subR):'—'}</span></div>
-            <div class="subcat-col desktop-only" style="width:90px;flex-shrink:0;padding:0 8px;display:flex;align-items:center;justify-content:center">
+            <div class="subcat-col desktop-only" style="width:90px;flex-shrink:0;padding:0 8px;display:flex;align-items:center;justify-content:center;gap:4px">
               <button class="add-tx-inline" style="border:none;padding:2px 6px;font-size:11px" data-tipo="${tipo}" data-catid="${cat.id}" data-sub="${encodeURIComponent(sub)}" onclick="launchSubEntry(this)">+ lançar</button>
+              <button class="add-tx-inline" title="Definir previsto em lote" style="border:none;padding:2px 5px;font-size:11px;opacity:.6" onclick="openPrevLote('${cat.id}','${encodeURIComponent(sub)}','${tipo}')">📅</button>
             </div>
           </div>
           <div class="tx-list" id="${txId}">${txHtml||'<div style="padding:4px 8px;font-size:12px;color:var(--text3)">Sem lançamentos</div>'}</div>`;
@@ -3497,6 +3518,64 @@ window.onSubPrevBlurData=async el=>{
   },150);
 };
 window.onSubPrevKeydown=(e,el)=>{if(e.key==='Enter')el.blur();if(e.key==='Escape'){el.value='';el.blur();}};
+
+/* ── PREVISTO EM LOTE ── */
+let _mplCatId='', _mplSub='', _mplTipo='';
+const MONTH_NAMES_PT=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+window.openPrevLote=(catId,subEnc,tipo)=>{
+  _mplCatId=catId;
+  _mplSub=decodeURIComponent(subEnc);
+  _mplTipo=tipo;
+  const subLabel=_mplSub||'(sem subcategoria)';
+  document.getElementById('mpl-title').textContent='Previsto em lote — '+subLabel;
+  document.getElementById('mpl-val').value='';
+  // Monta grid de meses do ano atual (viewYear)
+  const yr=viewYear||new Date().getFullYear();
+  const grid=document.getElementById('mpl-months');
+  grid.innerHTML='';
+  for(let m=1;m<=12;m++){
+    const key=`${_mplCatId}__${_mplSub}__${yr}-${String(m).padStart(2,'0')}`;
+    const existing=previstos[key]||0;
+    const id=`mpl-m-${m}`;
+    const div=document.createElement('label');
+    div.style.cssText='display:flex;align-items:center;gap:5px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);cursor:pointer;font-size:12px;';
+    div.innerHTML=`<input type="checkbox" id="${id}" data-month="${m}" style="accent-color:var(--accent)" checked><span style="flex:1">${MONTH_NAMES_PT[m-1]}</span><span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace">${existing>0?fmt(existing):''}</span>`;
+    grid.appendChild(div);
+  }
+  openModal('modal-prev-lote');
+  setTimeout(()=>document.getElementById('mpl-val').focus(),100);
+};
+
+window.mplSelectAll=()=>{
+  document.querySelectorAll('#mpl-months input[type=checkbox]').forEach(c=>c.checked=true);
+};
+window.mplSelectNone=()=>{
+  document.querySelectorAll('#mpl-months input[type=checkbox]').forEach(c=>c.checked=false);
+};
+window.mplSelectYear=()=>{
+  document.querySelectorAll('#mpl-months input[type=checkbox]').forEach(c=>c.checked=true);
+};
+
+window.savePrevLote=async()=>{
+  const rawVal=document.getElementById('mpl-val').value.trim().replace(',','.');
+  const v=parseFloat(rawVal)||0;
+  const checked=[...document.querySelectorAll('#mpl-months input[type=checkbox]:checked')];
+  if(!checked.length){alert('Selecione ao menos um mês.');return;}
+  const yr=viewYear||new Date().getFullYear();
+  const btn=document.querySelector('#modal-prev-lote .btn-save');
+  btn.disabled=true;btn.textContent='Salvando…';
+  for(const cb of checked){
+    const m=parseInt(cb.dataset.month);
+    const key=`${_mplCatId}__${_mplSub}__${yr}-${String(m).padStart(2,'0')}`;
+    previstos[key]=v;
+  }
+  await savePrevistos();
+  btn.disabled=false;btn.textContent='Salvar';
+  closeModal('modal-prev-lote');
+  refreshActivePage();
+};
+
 window.toggleNoDate=cb=>{
   const inp=document.getElementById('me-date');
   if(cb.checked){inp.dataset.prev=inp.value;inp.value='';inp.disabled=true;inp.style.opacity='.4';}
